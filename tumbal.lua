@@ -1,8 +1,49 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local VirtualUser = game:GetService("VirtualUser")
 
 while not Players.LocalPlayer do task.wait() end
 local player = Players.LocalPlayer
+
+-- ============================================================
+-- ANTI-AFK
+-- ============================================================
+local ANTI_AFK_INTERVAL = 60 -- detik, heartbeat kecil (bukan yg utama)
+local antiAfkConn = nil
+
+local function kickAntiAfk()
+    -- Kirim input palsu via VirtualUser (cara paling ampuh)
+    pcall(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton1(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+    end)
+
+    -- Backup: sentuh kamera + gerak mouse tipis
+    pcall(function()
+        local cam = workspace.CurrentCamera
+        if cam then
+            cam.CFrame = cam.CFrame * CFrame.Angles(0, math.rad(0.1), 0)
+        end
+    end)
+end
+
+-- Handler utama: dipanggil Roblox saat mendeteksi idle (~20 menit)
+player.Idled:Connect(function()
+    kickAntiAfk()
+end)
+
+-- Heartbeat kecil: cegah idle timer menumpuk lebih awal
+if antiAfkConn then antiAfkConn:Disconnect() end
+antiAfkConn = task.spawn(function()
+    while true do
+        task.wait(ANTI_AFK_INTERVAL)
+        if player.Parent then
+            kickAntiAfk()
+        else
+            break
+        end
+    end
+end)
 
 -- ============================================================
 -- KONFIGURASI EMOTE
